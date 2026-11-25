@@ -591,6 +591,8 @@ model Workspace {
   apiKeys       ApiKey[]
   emailProvider WorkspaceEmailProvider?
   auditLogs     AuditLog[]
+  emailTemplates EmailTemplate[]
+  assets        WorkspaceAsset[]
 
   @@index([ownerId])
 }
@@ -725,3 +727,41 @@ model AuditLog {
 
   @@index([workspaceId, createdAt])
 }
+
+/// A workspace's own HTML email design (Handlebars merge tags, CSS inlined at send time).
+model EmailTemplate {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String   @db.VarChar(80)
+  description String?  @db.VarChar(300)
+  /// Default subject; a form's own subject wins when set
+  subject     String   @db.VarChar(200)
+  /// Full HTML document as authored (may contain <style>)
+  html        String   @db.MediumText
+  createdById String?
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, name])
+}
+
+/// Images uploaded for email templates, served publicly at /api/assets/<id>/<name>.
+model WorkspaceAsset {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String   @db.VarChar(120)
+  mime        String   @db.VarChar(40)
+  size        Int
+  sha256      String   @db.Char(64)
+  data        Bytes    @db.LongBlob
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt])
+}
+

@@ -391,6 +391,8 @@ export interface FormSettings {
   saveAndResume: boolean
   /** Days a resume link stays valid */
   resumeTtlDays: number
+  /** Workspace EmailTemplate used for new-response notifications (null = built-in design) */
+  notifyTemplateId: string | null
 }
 
 /** Respondent thank-you email. Strings support {{field_key}} merge tags. */
@@ -404,9 +406,11 @@ export interface AutoReplySettings {
   fromName: string
   /** Reply-To address; falls back to the first notification address */
   replyTo: string
+  /** Workspace EmailTemplate with the client's own HTML (null = built-in design) */
+  templateId: string | null
 }
 
-export type PublicFormSettings = Omit<FormSettings, "passwordHash" | "notifyEmails" | "autoReply">
+export type PublicFormSettings = Omit<FormSettings, "passwordHash" | "notifyEmails" | "autoReply" | "notifyTemplateId">
 
 export interface Step {
   /** "__start" for the implicit first step, otherwise the step_break field id */

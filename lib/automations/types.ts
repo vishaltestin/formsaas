@@ -108,6 +108,8 @@ export interface EmailConfig {
   subject: string
   body: string
   replyTo?: string
+  /** Workspace HTML email template; the body is available in it as {{message}} */
+  templateId?: string | null
 }
 
 export interface UpdateSubmissionConfig {

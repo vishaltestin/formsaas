@@ -15,6 +15,7 @@ import { PrismaClient, type EventSource, type SubmissionStatus } from "../genera
 import { evaluateLogic, fromKeyedData, type FormSchema, type FormValues } from "../lib/form-engine"
 import { DEFAULT_OWNER_CONTACT, DEFAULT_PLANS } from "../lib/plans"
 import { getTemplate } from "../lib/templates"
+import { TEMPLATE_STARTERS } from "../lib/email/template-library"
 import { seedV2 } from "./seed-v2"
 
 const url = new URL(process.env.DATABASE_URL ?? "mysql://root@127.0.0.1:3306/formstudio")
@@ -474,6 +475,21 @@ async function main() {
       status: "PENDING",
       createdAt: daysAgo(1),
     },
+  })
+
+  console.log("› Seeding a custom HTML email template")
+  const branded = TEMPLATE_STARTERS.find((t) => t.id === "branded")!
+  const brandedHtml = branded.html.replace("Your Company", "Dana Demo Co.")
+  const demoTemplate = await prisma.emailTemplate.upsert({
+    where: { workspaceId_name: { workspaceId: demoWs, name: "Dana Demo Co. letter" } },
+    update: { html: brandedHtml, subject: branded.subject },
+    create: { workspaceId: demoWs, name: "Dana Demo Co. letter", description: "Brand bar, answers and a receipt button.", subject: branded.subject, html: brandedHtml, createdById: demo.id },
+  })
+  // Contact form thank-you emails use it, so the demo shows a custom design end to end.
+  const contactSettings = (await prisma.form.findUniqueOrThrow({ where: { id: contact.id }, select: { settings: true } })).settings as Record<string, unknown>
+  await prisma.form.update({
+    where: { id: contact.id },
+    data: { settings: { ...contactSettings, autoReply: { ...((contactSettings.autoReply as object) ?? {}), templateId: demoTemplate.id } } },
   })
 
   console.log("› Seeding automations, runs, API keys & notifications")

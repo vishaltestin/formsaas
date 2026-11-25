@@ -6,6 +6,7 @@ import { processDueRuns } from "@/lib/automations/runner"
 import { toRunView } from "@/lib/automations/view"
 import { getEffectivePlan } from "@/lib/entitlements"
 import { isInputField, normalizeSchema } from "@/lib/form-engine"
+import { workspaceAllowsCustomEmail } from "@/lib/email/template-store"
 import { prisma } from "@/lib/prisma"
 import { requireFormAccess } from "@/lib/rbac/server"
 
@@ -17,9 +18,11 @@ export default async function AutomationsPage(props: PageProps<"/dashboard/forms
   const { form } = await requireFormAccess(formId, "automations.manage")
   await processDueRuns().catch(() => 0)
 
-  const [plan, automations] = await Promise.all([
+  const [plan, automations, emailTemplates, customEmail] = await Promise.all([
     getEffectivePlan(form.userId),
     prisma.automation.findMany({ where: { formId }, orderBy: { createdAt: "asc" } }),
+    prisma.emailTemplate.findMany({ where: { workspaceId: form.workspaceId }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    workspaceAllowsCustomEmail(form.workspaceId),
   ])
   const requestedRun = typeof sp.run === "string" ? await prisma.automationRun.findFirst({ where: { id: sp.run, automation: { formId } }, select: { automationId: true } }) : null
   const selectedId = (typeof sp.a === "string" && automations.some((a) => a.id === sp.a) ? sp.a : requestedRun?.automationId) ?? automations[0]?.id ?? null
@@ -55,6 +58,7 @@ export default async function AutomationsPage(props: PageProps<"/dashboard/forms
       selectedId={selectedId}
       runs={runs.map(toRunView)}
       initialRunId={typeof sp.run === "string" ? sp.run : null}
+      emailTemplates={{ options: emailTemplates, allowed: customEmail }}
     />
   )
 }

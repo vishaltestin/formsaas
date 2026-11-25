@@ -235,6 +235,58 @@ describe("team roles (RBAC)", () => {
   })
 })
 
+describe("custom HTML email templates", () => {
+  let dana = ""
+  let sam = ""
+  let maya = ""
+  let templateId = ""
+  before(async () => {
+    ;[dana, sam, maya] = await Promise.all([login("demo@formstudio.dev", "Demo@12345"), login("sam@formstudio.dev", "Sam@12345"), login("maya@northwind.dev", "Maya@12345")])
+    templateId = (await prisma.emailTemplate.findFirstOrThrow({ where: { name: "Dana Demo Co. letter" } })).id
+  })
+
+  it("lists the workspace's templates with create controls for editors", async () => {
+    const r = await http("/dashboard/settings/email-templates", { cookie: dana })
+    assert.equal(r.status, 200)
+    assert.match(r.text, /Dana Demo Co\. letter/)
+    assert.match(r.text, /New template/)
+    assert.match(r.text, /Contact &amp; Support Inquiry · thank-you/, "usage lists the seeded form")
+  })
+
+  it("opens the HTML editor", async () => {
+    const r = await http(`/dashboard/settings/email-templates/${templateId}`, { cookie: dana })
+    assert.equal(r.status, 200)
+    assert.match(r.text, /Default subject/)
+    assert.match(r.text, /Email preview|Loading editor/)
+  })
+
+  it("shows members the templates read-only", async () => {
+    const r = await http("/dashboard/settings/email-templates", { cookie: sam })
+    assert.equal(r.status, 200)
+    assert.match(r.text, /Dana Demo Co\. letter/)
+    assert.doesNotMatch(r.text, /New template/)
+  })
+
+  it("keeps templates inside their workspace and gates free plans", async () => {
+    const foreign = await http(`/dashboard/settings/email-templates/${templateId}`, { cookie: maya })
+    assert.equal(foreign.status, 404)
+    const own = await http("/dashboard/settings/email-templates", { cookie: maya })
+    assert.equal(own.status, 200)
+    assert.match(own.text, /Pro feature/)
+  })
+
+  it("offers the template in the form builder", async () => {
+    const r = await http(`/dashboard/forms/${contact.id}/edit`, { cookie: dana })
+    assert.equal(r.status, 200)
+    assert.match(r.text, /Dana Demo Co\. letter/)
+  })
+
+  it("returns 404 for unknown email images", async () => {
+    const r = await http("/api/assets/doesnotexist0001/logo.png")
+    assert.equal(r.status, 404)
+  })
+})
+
 describe("developer API over HTTP", () => {
   const auth = { authorization: `Bearer ${DEMO_API_KEY}` }
 

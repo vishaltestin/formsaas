@@ -1,7 +1,9 @@
 import "server-only"
 
 import type { Automation, AutomationRun, Prisma } from "@/generated/prisma/client"
-import { isInputField, normalizeSchema, sampleFieldValue } from "@/lib/form-engine"
+import { buildTemplateVars, messageHtml, renderCustomEmail } from "@/lib/email/custom-template"
+import { loadTemplateForSend } from "@/lib/email/template-store"
+import { isInputField, normalizeSchema, sampleFieldValue, type FieldValue, type FormValues } from "@/lib/form-engine"
 import { appUrl } from "@/lib/format"
 import { escapeHtml, sendEmail } from "@/lib/notify"
 import { prisma } from "@/lib/prisma"
@@ -110,6 +112,45 @@ function buildEnv(run: AutomationRun, automation: Automation & { form: { id: str
     async sendEmail(input) {
       const res = await sendEmail({ ...input, source: `automation:${run.id}`, workspaceId: automation.form.workspaceId })
       return { id: res.id, status: res.sent ? "SENT" : res.reason === "not-configured" ? "LOGGED" : res.reason === "no-recipients" ? "SKIPPED" : "FAILED" }
+    },
+    async renderEmailTemplate(templateId, input) {
+      const template = await loadTemplateForSend(automation.form.workspaceId, templateId)
+      if (!template) return null
+      const [form, workspace] = await Promise.all([
+        prisma.form.findUnique({ where: { id: automation.formId }, select: { publishedSchema: true, draftSchema: true } }),
+        prisma.workspace.findUnique({ where: { id: automation.form.workspaceId }, select: { name: true } }),
+      ])
+      const schema = normalizeSchema(form?.publishedSchema ?? form?.draftSchema)
+      const trigger = ((run.triggerData ?? {}) as Partial<TriggerData>)
+      const keyed = (trigger.data ?? {}) as Record<string, unknown>
+      const values: FormValues = {}
+      for (const f of schema.fields) if (f.key in keyed) values[f.id] = keyed[f.key] as FieldValue
+      const sub = trigger.submission
+      try {
+        const out = renderCustomEmail(
+          template,
+          {
+            ...buildTemplateVars({
+              schema,
+              values,
+              extras: {
+                form_title: automation.form.title,
+                submission_id: sub?.id ?? "",
+                submitted_at: sub?.createdAt ? new Date(sub.createdAt).toUTCString() : "",
+                dashboard_url: sub?.url ?? "",
+                score: trigger.score ?? null,
+                workspace_name: workspace?.name ?? "",
+                email_body: input.message,
+              },
+            }),
+            email_body_html: messageHtml(input.message),
+          },
+          { subjectOverride: input.subject }
+        )
+        return { ...out, template: template.name }
+      } catch (e) {
+        throw new Error(`Email template “${template.name}”: ${e instanceof Error ? e.message : String(e)}`)
+      }
     },
     async notify(input) {
       const n = await prisma.notification.create({

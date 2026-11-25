@@ -108,6 +108,8 @@ export interface FormBuilderProps {
   hasUnpublishedChanges: boolean
   features: PlanFeatures
   maxUploadMb: number
+  /** Workspace HTML email templates (custom emails need a Pro+ workspace) */
+  emailTemplates?: { options: { id: string; name: string }[]; allowed: boolean; canManage: boolean }
 }
 
 function isTyping(el: EventTarget | null) {
@@ -117,7 +119,7 @@ function isTyping(el: EventTarget | null) {
 }
 
 export function FormBuilder(props: FormBuilderProps) {
-  const { formId, slug, features, maxUploadMb } = props
+  const { formId, slug, features, maxUploadMb, emailTemplates } = props
   const router = useRouter()
   const builder = useBuilderState(props.initial)
   const { doc, update, undo, redo, reset, revision } = builder
@@ -671,6 +673,7 @@ export function FormBuilder(props: FormBuilderProps) {
                     schema={doc.schema}
                     settings={doc.settings}
                     features={{ webhooks: features.webhooks, removeBadge: features.removeBadge }}
+                    emailTemplates={emailTemplates}
                     onSettings={(patch, key) => update((d) => ({ ...d, settings: { ...d.settings, ...patch } }), key ? `settings-${key}` : undefined)}
                     onSchema={(fn, key) => update((d) => ({ ...d, schema: fn(d.schema) }), key ? `schema-${key}` : undefined)}
                   />

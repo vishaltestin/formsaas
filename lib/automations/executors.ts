@@ -25,7 +25,9 @@ export interface ExecEnv {
   allowPrivateNetwork: boolean
   fetch: typeof fetch
   sleep: (ms: number) => Promise<void>
-  sendEmail: (input: { to: string[]; subject: string; html: string; replyTo?: string }) => Promise<{ id: string | null; status: string }>
+  sendEmail: (input: { to: string[]; subject: string; html: string; text?: string; replyTo?: string }) => Promise<{ id: string | null; status: string }>
+  /** Renders a workspace HTML template for this run; null → template missing / not allowed (plain design is used) */
+  renderEmailTemplate?: (templateId: string, input: { subject: string; message: string }) => Promise<{ subject: string; html: string; text: string; template: string } | null>
   notify: (input: { userId: string; title: string; body?: string; href?: string; kind: string }) => Promise<{ id: string }>
   updateSubmission: (
     submissionId: string,
@@ -296,8 +298,18 @@ export async function executeNode(node: AutomationNode, scope: Scope, env: ExecE
       const subject = renderTemplate(c.subject, scope).slice(0, 300)
       const text = renderTemplate(c.body, scope)
       const replyTo = c.replyTo ? renderTemplate(c.replyTo, scope) : undefined
-      const res = await env.sendEmail({ to, subject, html: textToHtml(text), replyTo: replyTo && EMAIL_RE.test(replyTo) ? replyTo : undefined })
-      return { input: { to, subject, body: text }, output: { outboxId: res.id, to, status: res.status } }
+      const custom = c.templateId && env.renderEmailTemplate ? await env.renderEmailTemplate(c.templateId, { subject, message: text }) : null
+      const res = await env.sendEmail({
+        to,
+        subject: custom?.subject || subject,
+        html: custom?.html ?? textToHtml(text),
+        text: custom?.text,
+        replyTo: replyTo && EMAIL_RE.test(replyTo) ? replyTo : undefined,
+      })
+      return {
+        input: { to, subject: custom?.subject || subject, body: text, ...(c.templateId ? { template: custom?.template ?? null } : {}) },
+        output: { outboxId: res.id, to, status: res.status, ...(c.templateId && !custom ? { note: "Template unavailable — sent with the plain design" } : {}) },
+      }
     }
     case "update_submission": {
       const c = node.data.config as UpdateSubmissionConfig

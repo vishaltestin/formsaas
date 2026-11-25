@@ -257,6 +257,7 @@ export function defaultAutoReply(): AutoReplySettings {
     includeAnswers: true,
     fromName: "",
     replyTo: "",
+    templateId: null,
   }
 }
 
@@ -287,6 +288,7 @@ export function defaultSettings(): FormSettings {
     hideBadge: false,
     saveAndResume: false,
     resumeTtlDays: 14,
+    notifyTemplateId: null,
   }
 }
 
@@ -337,7 +339,13 @@ export function normalizeSettings(raw: unknown): FormSettings {
     allowedDomains: Array.isArray(raw.allowedDomains) ? (raw.allowedDomains as string[]) : [],
     notifyEmails: Array.isArray(raw.notifyEmails) ? (raw.notifyEmails as string[]) : [],
     autoReply: normalizeAutoReply(raw.autoReply, typeof raw.respondentEmailFieldId === "string" && !!raw.respondentEmailFieldId),
+    notifyTemplateId: templateRef(raw.notifyTemplateId),
   }
+}
+
+/** A reference to a workspace EmailTemplate id (cuid), or null. */
+function templateRef(v: unknown): string | null {
+  return typeof v === "string" && /^[a-z0-9]{8,40}$/i.test(v) ? v : null
 }
 
 function normalizeAutoReply(raw: unknown, legacyEnabled: boolean): AutoReplySettings {
@@ -353,12 +361,13 @@ function normalizeAutoReply(raw: unknown, legacyEnabled: boolean): AutoReplySett
     includeAnswers: typeof raw.includeAnswers === "boolean" ? raw.includeAnswers : base.includeAnswers,
     fromName: str(raw.fromName, "", 80).replace(/[<>"\r\n]/g, ""),
     replyTo: str(raw.replyTo, "", 200).trim(),
+    templateId: templateRef(raw.templateId),
   }
 }
 
 export function toPublicSettings(settings: FormSettings): PublicFormSettings {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { passwordHash, notifyEmails, autoReply, ...rest } = settings
+  const { passwordHash, notifyEmails, autoReply, notifyTemplateId, ...rest } = settings
   return rest
 }
 

@@ -301,3 +301,74 @@ The effective level is the highest of the direct and group grants. Groups are ma
 | `/dashboard/forms/[id]/access` | Assign a form to people and groups |
 | `/invite/[token]` | Accept an invitation |
 
+
+## v7 — your own HTML email templates
+
+Workspaces on **Pro / Enterprise** can replace the built-in email design with their own HTML, CSS and images. Templates belong to the workspace and are reusable by every form and automation in it.
+
+### Where it's used
+
+| Email | Pick the design in |
+|---|---|
+| Respondent thank-you (auto-reply) | Builder → Settings → Thank-you email → **Design** |
+| New-response notification to the team | Builder → Settings → Notifications → **Notification design** |
+| Automation "Send email" step | Automation Studio → email step → **Design** (the step's message is available as `{{email_body_html}}`) |
+
+"Built-in design" stays the default. If a template is deleted, or the workspace's plan no longer includes custom emails, the email goes out in the built-in design instead of failing. The same happens if a template breaks at send time (the error is logged).
+
+### Editor (Settings → Email templates)
+
+- CodeMirror HTML editor with CSS highlighting inside `<style>`. You can import an existing `.html` file. Templates can be up to 200 KB.
+- Live preview, rendered by the server exactly like a real send, with desktop, mobile and plain-text views. Use sample answers from any of your forms.
+- Pick merge tags, block snippets and images from menus. Syntax errors give a line number and **Go to line**.
+- Warnings for things email clients change: scripts, linked stylesheets, form controls, `data:` images, private or `http://` image URLs, background images, and emails over Gmail's 102 KB clipping limit.
+- **Send test** sends the editor contents, with sample answers, to your inbox through the workspace's email provider. **Ctrl/⌘+S** saves.
+- The default subject is used when a form's thank-you subject (or an automation's subject) is blank.
+
+### Merge tags
+
+`{{field_key}}` for any answer, plus `{{form_title}}`, `{{submission_id}}`, `{{submitted_at}}`, `{{answers_table}}` (a ready-made table), `{{receipt_url}}`, `{{dashboard_url}}`, `{{score}}`, `{{max_score}}`, `{{outcome}}`, `{{workspace_name}}`, and `{{email_body}}` / `{{email_body_html}}` in automations.
+
+Blocks: `{{#if company}}…{{else}}…{{/if}}`, `{{#unless}}`, `{{#each answers}}{{label}}: {{value}}{{/each}}`, `{{#with}}`. Partials, helpers and decorators are rejected.
+
+### Images
+
+Gmail and most clients block embedded `data:` images, so images are hosted:
+
+- Upload PNG, JPEG, GIF or WebP files (up to 2 MB each, 200 images or 50 MB per workspace). The real file type is checked from the file's contents, and SVG is not accepted.
+- Uploaded images are served at `/api/assets/<id>/<name>` with `nosniff`, a deny-all CSP and long-lived caching.
+- Inserted URLs use `NEXT_PUBLIC_APP_URL`, so set it to your public domain in production. Any public `https://` image URL works too.
+
+### How a template is rendered (`lib/email/custom-template.ts`)
+
+1. **Handlebars:**
+   - Runs on an isolated instance with `knownHelpersOnly`.
+   - An AST check allows only plain tags and the four built-in blocks.
+   - Answers are HTML-escaped. Only `{{answers_table}}` / `{{email_body_html}}` are pre-built safe HTML.
+   - Subjects are rendered as plain text.
+2. **juice** inlines `<style>` rules into `style=""` attributes. Media queries and `@font-face` stay in a `<style>` block.
+3. **sanitize-html** removes:
+   - `<script>`, `on*` handlers, `iframe` / `object` / `embed`, forms and `<link>`.
+   - `javascript:` links and any other non-`http(s)` / `mailto` / `tel` scheme, plus `data:` images.
+   - Anything injected through a triple-stash `{{{tag}}}`.
+4. **html-to-text** builds the plain-text alternative.
+
+### Permissions
+
+| | Owner / Admin / Editor | Member |
+|---|---|---|
+| View templates & images | ✓ | ✓ (read-only) |
+| Create, edit, duplicate, delete, upload | ✓ | — |
+| Choose a template for a form | needs **Edit** on the form | — |
+
+Actions check workspace membership on the server. Template ids are only resolved inside the form's own workspace, so an id copied from another workspace is ignored. Creating, updating and deleting templates and images is recorded in the audit log.
+
+### New routes and models
+
+| Route | Purpose |
+|---|---|
+| `/dashboard/settings/email-templates` | Template gallery and image library |
+| `/dashboard/settings/email-templates/[id]` | HTML editor with live preview |
+| `/api/assets/[id]/[name]` | Public image hosting for emails |
+
+New Prisma models: `EmailTemplate` and `WorkspaceAsset` (migration `20261125095659_email_templates`). The seed adds "Dana Demo Co. letter" to Dana's workspace and uses it for the Contact & Support thank-you email.

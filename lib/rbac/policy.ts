@@ -72,6 +72,7 @@ export type WorkspacePermission =
   | "workspace.view"
   | "members.view"
   | "form.create"
+  | "templates.manage"
   | "forms.all"
   | "members.invite"
   | "members.manage"
@@ -86,6 +87,7 @@ const MIN_ROLE: Record<WorkspacePermission, WorkspaceRole> = {
   "workspace.view": "MEMBER",
   "members.view": "MEMBER",
   "form.create": "EDITOR",
+  "templates.manage": "EDITOR",
   "forms.all": "ADMIN",
   "members.invite": "ADMIN",
   "members.manage": "ADMIN",

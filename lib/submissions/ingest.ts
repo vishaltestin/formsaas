@@ -23,6 +23,7 @@ import {
   type FormValues,
 } from "@/lib/form-engine"
 import { answerRows, buildNewResponseEmail, buildThankYouEmail } from "@/lib/email/auto-reply"
+import { loadTemplateForSend } from "@/lib/email/template-store"
 import { sendEmail } from "@/lib/notify"
 import { prisma } from "@/lib/prisma"
 import { hashIp, parseUserAgent, verifyUnlockToken } from "@/lib/public-form"
@@ -292,9 +293,17 @@ export async function runPostSubmit(ctx: PostSubmitContext) {
   )
 
   const respondentEmail = settings.respondentEmailFieldId ? clean[settings.respondentEmailFieldId] : null
-  if (settings.autoReply.enabled && typeof respondentEmail === "string" && respondentEmail.includes("@")) {
+  const wantsReply = settings.autoReply.enabled && typeof respondentEmail === "string" && respondentEmail.includes("@")
+  const [replyTemplate, notifyTemplate, workspace] = await Promise.all([
+    wantsReply ? loadTemplateForSend(form.workspaceId, settings.autoReply.templateId).catch(() => null) : null,
+    settings.notifyEmails.length ? loadTemplateForSend(form.workspaceId, settings.notifyTemplateId).catch(() => null) : null,
+    form.workspaceId ? prisma.workspace.findUnique({ where: { id: form.workspaceId }, select: { name: true } }).catch(() => null) : null,
+  ])
+  if (wantsReply && typeof respondentEmail === "string") {
     tasks.push(
       buildThankYouEmail({
+        template: replyTemplate,
+        workspaceName: workspace?.name,
         formTitle: form.title,
         theme: form.themeConfig,
         schema,
@@ -328,6 +337,12 @@ export async function runPostSubmit(ctx: PostSubmitContext) {
         theme: form.themeConfig,
         rows: answerRows(schema, clean, ctx.visibleFieldIds),
         submissionId: submission.id,
+        submittedAt: submission.createdAt,
+        template: notifyTemplate,
+        schema,
+        values: clean,
+        visibleFieldIds: ctx.visibleFieldIds,
+        workspaceName: workspace?.name,
       }).then((mail) =>
         sendEmail({
           to: settings.notifyEmails,

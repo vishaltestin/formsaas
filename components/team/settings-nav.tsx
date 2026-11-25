@@ -4,9 +4,10 @@ import { roleCan, type WorkspaceRole } from "@/lib/rbac/policy"
 import { cn } from "@/lib/utils"
 
 /** Server-rendered tab strip for workspace settings; items the role can't use are not rendered. */
-export function SettingsNav({ active, role }: { active: "general" | "email"; role: WorkspaceRole }) {
+export function SettingsNav({ active, role }: { active: "general" | "email" | "templates"; role: WorkspaceRole }) {
   const items = [
     { id: "general", href: "/dashboard/settings", label: "General", show: true },
+    { id: "templates", href: "/dashboard/settings/email-templates", label: "Email templates", show: true },
     { id: "email", href: "/dashboard/settings/email", label: "Email delivery", show: roleCan(role, "email.manage") },
   ].filter((i) => i.show)
   return (

@@ -3,14 +3,22 @@ import type { Metadata } from "next"
 import { FormBuilder } from "@/components/builder/form-builder"
 import { getEffectivePlan } from "@/lib/entitlements"
 import { normalizeMode, normalizeSchema, normalizeSettings, normalizeTheme } from "@/lib/form-engine"
-import { requireFormAccess } from "@/lib/rbac/server"
+import { workspaceAllowsCustomEmail } from "@/lib/email/template-store"
+import { prisma } from "@/lib/prisma"
+import { roleCan } from "@/lib/rbac/policy"
+import { getMembership, requireFormAccess } from "@/lib/rbac/server"
 
 export const metadata: Metadata = { title: "Builder" }
 
 export default async function EditFormPage(props: PageProps<"/dashboard/forms/[formId]/edit">) {
   const { formId } = await props.params
-  const { form } = await requireFormAccess(formId, "form.edit")
-  const plan = await getEffectivePlan(form.userId)
+  const { user, form } = await requireFormAccess(formId, "form.edit")
+  const [plan, templates, customEmail, membership] = await Promise.all([
+    getEffectivePlan(form.userId),
+    prisma.emailTemplate.findMany({ where: { workspaceId: form.workspaceId }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    workspaceAllowsCustomEmail(form.workspaceId),
+    getMembership(user.id, form.workspaceId),
+  ])
 
   const settings = normalizeSettings(form.settings)
   // Never ship the password hash to the browser.
@@ -36,6 +44,7 @@ export default async function EditFormPage(props: PageProps<"/dashboard/forms/[f
       }}
       features={plan.features}
       maxUploadMb={plan.limits.maxFileUploadMb < 0 ? 100 : plan.limits.maxFileUploadMb}
+      emailTemplates={{ options: templates, allowed: customEmail, canManage: roleCan(membership?.role, "templates.manage") }}
     />
   )
 }

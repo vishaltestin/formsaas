@@ -34,6 +34,7 @@ const LABELS: Record<string, string> = {
   team: "Team",
   access: "Access",
   email: "Email delivery",
+  "email-templates": "Email templates",
 }
 
 /** Segments whose label depends on the section (admin vs. workspace dashboard). */
@@ -52,6 +53,10 @@ export function AppBreadcrumbs({ formTitles }: { formTitles: Record<string, stri
     if (seg === "forms") continue
     if (parts[i - 1] === "forms") {
       crumbs.push({ href: `${href}/edit`, label: formTitles[seg] ?? "Form" })
+      continue
+    }
+    if (parts[i - 1] === "email-templates") {
+      crumbs.push({ href, label: "Edit template" })
       continue
     }
     const label = (parts[0] === "dashboard" ? DASHBOARD_LABELS[seg] : undefined) ?? LABELS[seg] ?? seg

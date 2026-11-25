@@ -1,11 +1,25 @@
 "use client"
 
-import { PlusIcon, Trash2Icon } from "lucide-react"
+import { createContext, useContext } from "react"
+import Link from "next/link"
+import { ExternalLinkIcon, PlusIcon, Trash2Icon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { Field, FieldDescription, FieldGroup, FieldLabel, FieldSeparator } from "@/components/ui/field"
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+  FieldSeparator,
+} from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import {
   CONDITION_OPERATORS,
@@ -31,7 +45,19 @@ import { TemplateInput } from "./template-input"
 
 type Patch = (config: Record<string, unknown>) => void
 
-function NumberField({ id, value, onChange, min, max }: { id: string; value: number; onChange: (n: number) => void; min?: number; max?: number }) {
+function NumberField({
+  id,
+  value,
+  onChange,
+  min,
+  max,
+}: {
+  id: string
+  value: number
+  onChange: (n: number) => void
+  min?: number
+  max?: number
+}) {
   return (
     <Input
       id={id}
@@ -41,7 +67,9 @@ function NumberField({ id, value, onChange, min, max }: { id: string; value: num
       value={Number.isFinite(value) ? value : ""}
       min={min}
       max={max}
-      onChange={(e) => onChange(e.target.value === "" ? 0 : Number(e.target.value))}
+      onChange={(e) =>
+        onChange(e.target.value === "" ? 0 : Number(e.target.value))
+      }
     />
   )
 }
@@ -77,7 +105,10 @@ function TriggerForm({ c, patch }: { c: TriggerConfig; patch: Patch }) {
         <div className="grid grid-cols-2 gap-2">
           <Field>
             <FieldLabel htmlFor="tr-op">Score is</FieldLabel>
-            <Select value={c.scoreOperator ?? "gte"} onValueChange={(scoreOperator) => patch({ scoreOperator })}>
+            <Select
+              value={c.scoreOperator ?? "gte"}
+              onValueChange={(scoreOperator) => patch({ scoreOperator })}
+            >
               <SelectTrigger id="tr-op" className="w-full">
                 <SelectValue />
               </SelectTrigger>
@@ -92,14 +123,21 @@ function TriggerForm({ c, patch }: { c: TriggerConfig; patch: Patch }) {
           </Field>
           <Field>
             <FieldLabel htmlFor="tr-th">Threshold</FieldLabel>
-            <NumberField id="tr-th" value={c.scoreThreshold ?? 0} onChange={(scoreThreshold) => patch({ scoreThreshold })} />
+            <NumberField
+              id="tr-th"
+              value={c.scoreThreshold ?? 0}
+              onChange={(scoreThreshold) => patch({ scoreThreshold })}
+            />
           </Field>
         </div>
       )}
       {c.kind === "STATUS_CHANGED" && (
         <Field>
           <FieldLabel htmlFor="tr-status">New status</FieldLabel>
-          <Select value={c.toStatus || "ANY"} onValueChange={(v) => patch({ toStatus: v === "ANY" ? "" : v })}>
+          <Select
+            value={c.toStatus || "ANY"}
+            onValueChange={(v) => patch({ toStatus: v === "ANY" ? "" : v })}
+          >
             <SelectTrigger id="tr-status" className="w-full">
               <SelectValue />
             </SelectTrigger>
@@ -117,8 +155,17 @@ function TriggerForm({ c, patch }: { c: TriggerConfig; patch: Patch }) {
   )
 }
 
-function ConditionForm({ c, patch, groups }: { c: ConditionConfig; patch: Patch; groups: VariableGroup[] }) {
-  const setRule = (i: number, r: Partial<ConditionConfig["rules"][number]>) => patch({ rules: c.rules.map((x, j) => (j === i ? { ...x, ...r } : x)) })
+function ConditionForm({
+  c,
+  patch,
+  groups,
+}: {
+  c: ConditionConfig
+  patch: Patch
+  groups: VariableGroup[]
+}) {
+  const setRule = (i: number, r: Partial<ConditionConfig["rules"][number]>) =>
+    patch({ rules: c.rules.map((x, j) => (j === i ? { ...x, ...r } : x)) })
   return (
     <FieldGroup>
       <Field>
@@ -139,12 +186,31 @@ function ConditionForm({ c, patch, groups }: { c: ConditionConfig; patch: Patch;
           <div key={i} className="space-y-2 rounded-md border p-2.5">
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span className="font-mono">rule {i + 1}</span>
-              <Button variant="ghost" size="icon-xs" aria-label="Remove rule" disabled={c.rules.length === 1} onClick={() => patch({ rules: c.rules.filter((_, j) => j !== i) })}>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                aria-label="Remove rule"
+                disabled={c.rules.length === 1}
+                onClick={() =>
+                  patch({ rules: c.rules.filter((_, j) => j !== i) })
+                }
+              >
                 <Trash2Icon />
               </Button>
             </div>
-            <TemplateInput value={r.left} onChange={(left) => setRule(i, { left })} groups={groups} placeholder="{{trigger.data.email}}" mono />
-            <Select value={r.op} onValueChange={(op) => setRule(i, { op: op as ConditionOperator })}>
+            <TemplateInput
+              value={r.left}
+              onChange={(left) => setRule(i, { left })}
+              groups={groups}
+              placeholder="{{trigger.data.email}}"
+              mono
+            />
+            <Select
+              value={r.op}
+              onValueChange={(op) =>
+                setRule(i, { op: op as ConditionOperator })
+              }
+            >
               <SelectTrigger className="w-full" aria-label="Operator">
                 <SelectValue />
               </SelectTrigger>
@@ -156,27 +222,67 @@ function ConditionForm({ c, patch, groups }: { c: ConditionConfig; patch: Patch;
                 ))}
               </SelectContent>
             </Select>
-            {!unary && <TemplateInput value={r.right ?? ""} onChange={(right) => setRule(i, { right })} groups={groups} placeholder="Value" />}
+            {!unary && (
+              <TemplateInput
+                value={r.right ?? ""}
+                onChange={(right) => setRule(i, { right })}
+                groups={groups}
+                placeholder="Value"
+              />
+            )}
           </div>
         )
       })}
-      <Button variant="outline" size="sm" onClick={() => patch({ rules: [...c.rules, { left: "", op: "equals", right: "" }] })}>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() =>
+          patch({ rules: [...c.rules, { left: "", op: "equals", right: "" }] })
+        }
+      >
         <PlusIcon data-icon="inline-start" /> Add rule
       </Button>
-      <FieldDescription>Connect the green “true” handle and the red “false” handle to route each outcome.</FieldDescription>
+      <FieldDescription>
+        Connect the green “true” handle and the red “false” handle to route each
+        outcome.
+      </FieldDescription>
     </FieldGroup>
   )
 }
 
-function TransformForm({ c, patch, groups }: { c: TransformConfig; patch: Patch; groups: VariableGroup[] }) {
-  const set = (i: number, m: Partial<TransformConfig["mappings"][number]>) => patch({ mappings: c.mappings.map((x, j) => (j === i ? { ...x, ...m } : x)) })
+function TransformForm({
+  c,
+  patch,
+  groups,
+}: {
+  c: TransformConfig
+  patch: Patch
+  groups: VariableGroup[]
+}) {
+  const set = (i: number, m: Partial<TransformConfig["mappings"][number]>) =>
+    patch({
+      mappings: c.mappings.map((x, j) => (j === i ? { ...x, ...m } : x)),
+    })
   return (
     <FieldGroup>
       {c.mappings.map((m, i) => (
         <div key={i} className="space-y-2 rounded-md border p-2.5">
           <div className="flex gap-2">
-            <Input aria-label="Output key" className="font-mono text-xs" value={m.key} placeholder="key" onChange={(e) => set(i, { key: e.target.value })} />
-            <Select value={m.type} onValueChange={(type) => set(i, { type: type as TransformConfig["mappings"][number]["type"] })}>
+            <Input
+              aria-label="Output key"
+              className="font-mono text-xs"
+              value={m.key}
+              placeholder="key"
+              onChange={(e) => set(i, { key: e.target.value })}
+            />
+            <Select
+              value={m.type}
+              onValueChange={(type) =>
+                set(i, {
+                  type: type as TransformConfig["mappings"][number]["type"],
+                })
+              }
+            >
               <SelectTrigger className="w-28" aria-label="Type">
                 <SelectValue />
               </SelectTrigger>
@@ -187,43 +293,120 @@ function TransformForm({ c, patch, groups }: { c: TransformConfig; patch: Patch;
                 <SelectItem value="json">json</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="ghost" size="icon-sm" aria-label="Remove mapping" disabled={c.mappings.length === 1} onClick={() => patch({ mappings: c.mappings.filter((_, j) => j !== i) })}>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Remove mapping"
+              disabled={c.mappings.length === 1}
+              onClick={() =>
+                patch({ mappings: c.mappings.filter((_, j) => j !== i) })
+              }
+            >
               <Trash2Icon />
             </Button>
           </div>
-          <TemplateInput value={m.value} onChange={(value) => set(i, { value })} groups={groups} placeholder="{{trigger.data.name}}" mono multiline={m.type === "json"} rows={3} />
+          <TemplateInput
+            value={m.value}
+            onChange={(value) => set(i, { value })}
+            groups={groups}
+            placeholder="{{trigger.data.name}}"
+            mono
+            multiline={m.type === "json"}
+            rows={3}
+          />
         </div>
       ))}
-      <Button variant="outline" size="sm" onClick={() => patch({ mappings: [...c.mappings, { key: `field${c.mappings.length + 1}`, value: "", type: "string" }] })}>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() =>
+          patch({
+            mappings: [
+              ...c.mappings,
+              {
+                key: `field${c.mappings.length + 1}`,
+                value: "",
+                type: "string",
+              },
+            ],
+          })
+        }
+      >
         <PlusIcon data-icon="inline-start" /> Add mapping
       </Button>
-      <FieldDescription>Each key becomes available downstream as {"{{nodes.<id>.<key>}}"}.</FieldDescription>
+      <FieldDescription>
+        Each key becomes available downstream as {"{{nodes.<id>.<key>}}"}.
+      </FieldDescription>
     </FieldGroup>
   )
 }
 
-function KeyValueList({ items, onChange, groups }: { items: { key: string; value: string }[]; onChange: (v: { key: string; value: string }[]) => void; groups: VariableGroup[] }) {
+function KeyValueList({
+  items,
+  onChange,
+  groups,
+}: {
+  items: { key: string; value: string }[]
+  onChange: (v: { key: string; value: string }[]) => void
+  groups: VariableGroup[]
+}) {
   return (
     <div className="space-y-2">
       {items.map((h, i) => (
         <div key={i} className="flex gap-2">
-          <Input aria-label="Header name" className="w-36 font-mono text-xs" value={h.key} placeholder="X-Header" onChange={(e) => onChange(items.map((x, j) => (j === i ? { ...x, key: e.target.value } : x)))} />
+          <Input
+            aria-label="Header name"
+            className="w-36 font-mono text-xs"
+            value={h.key}
+            placeholder="X-Header"
+            onChange={(e) =>
+              onChange(
+                items.map((x, j) =>
+                  j === i ? { ...x, key: e.target.value } : x
+                )
+              )
+            }
+          />
           <div className="min-w-0 flex-1">
-            <TemplateInput value={h.value} onChange={(value) => onChange(items.map((x, j) => (j === i ? { ...x, value } : x)))} groups={groups} mono />
+            <TemplateInput
+              value={h.value}
+              onChange={(value) =>
+                onChange(items.map((x, j) => (j === i ? { ...x, value } : x)))
+              }
+              groups={groups}
+              mono
+            />
           </div>
-          <Button variant="ghost" size="icon-sm" aria-label="Remove header" onClick={() => onChange(items.filter((_, j) => j !== i))}>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Remove header"
+            onClick={() => onChange(items.filter((_, j) => j !== i))}
+          >
             <Trash2Icon />
           </Button>
         </div>
       ))}
-      <Button variant="outline" size="sm" onClick={() => onChange([...items, { key: "", value: "" }])}>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => onChange([...items, { key: "", value: "" }])}
+      >
         <PlusIcon data-icon="inline-start" /> Add header
       </Button>
     </div>
   )
 }
 
-function HttpForm({ c, patch, groups }: { c: HttpConfig; patch: Patch; groups: VariableGroup[] }) {
+function HttpForm({
+  c,
+  patch,
+  groups,
+}: {
+  c: HttpConfig
+  patch: Patch
+  groups: VariableGroup[]
+}) {
   return (
     <FieldGroup>
       <div className="flex gap-2">
@@ -240,18 +423,39 @@ function HttpForm({ c, patch, groups }: { c: HttpConfig; patch: Patch; groups: V
           </SelectContent>
         </Select>
         <div className="min-w-0 flex-1">
-          <TemplateInput value={c.url} onChange={(url) => patch({ url })} groups={groups} placeholder="https://api.example.com/leads" mono />
+          <TemplateInput
+            value={c.url}
+            onChange={(url) => patch({ url })}
+            groups={groups}
+            placeholder="https://api.example.com/leads"
+            mono
+          />
         </div>
       </div>
       <Field>
         <FieldLabel>Headers</FieldLabel>
-        <KeyValueList items={c.headers} onChange={(headers) => patch({ headers })} groups={groups} />
+        <KeyValueList
+          items={c.headers}
+          onChange={(headers) => patch({ headers })}
+          groups={groups}
+        />
       </Field>
       {!["GET", "DELETE"].includes(c.method) && (
         <Field>
           <FieldLabel htmlFor="http-body">Body</FieldLabel>
-          <TemplateInput id="http-body" value={c.body} onChange={(body) => patch({ body })} groups={groups} multiline rows={7} mono />
-          <FieldDescription>Variables inside JSON strings are escaped automatically; bare variables become JSON values.</FieldDescription>
+          <TemplateInput
+            id="http-body"
+            value={c.body}
+            onChange={(body) => patch({ body })}
+            groups={groups}
+            multiline
+            rows={7}
+            mono
+          />
+          <FieldDescription>
+            Variables inside JSON strings are escaped automatically; bare
+            variables become JSON values.
+          </FieldDescription>
         </Field>
       )}
       <FieldSeparator />
@@ -272,87 +476,258 @@ function HttpForm({ c, patch, groups }: { c: HttpConfig; patch: Patch; groups: V
       {c.auth === "header" && (
         <Field>
           <FieldLabel htmlFor="http-hn">Header name</FieldLabel>
-          <Input id="http-hn" className="font-mono text-xs" value={c.authHeaderName ?? ""} placeholder="X-API-Key" onChange={(e) => patch({ authHeaderName: e.target.value })} />
+          <Input
+            id="http-hn"
+            className="font-mono text-xs"
+            value={c.authHeaderName ?? ""}
+            placeholder="X-API-Key"
+            onChange={(e) => patch({ authHeaderName: e.target.value })}
+          />
         </Field>
       )}
       {(c.auth === "bearer" || c.auth === "header") && (
         <Field>
-          <FieldLabel htmlFor="http-token">{c.auth === "bearer" ? "Token" : "Key"}</FieldLabel>
-          <Input id="http-token" type="password" autoComplete="off" className="font-mono text-xs" value={c.authToken ?? ""} onChange={(e) => patch({ authToken: e.target.value })} />
+          <FieldLabel htmlFor="http-token">
+            {c.auth === "bearer" ? "Token" : "Key"}
+          </FieldLabel>
+          <Input
+            id="http-token"
+            type="password"
+            autoComplete="off"
+            className="font-mono text-xs"
+            value={c.authToken ?? ""}
+            onChange={(e) => patch({ authToken: e.target.value })}
+          />
         </Field>
       )}
       {c.auth === "basic" && (
         <div className="grid grid-cols-2 gap-2">
           <Field>
             <FieldLabel htmlFor="http-user">Username</FieldLabel>
-            <Input id="http-user" value={c.authUser ?? ""} onChange={(e) => patch({ authUser: e.target.value })} />
+            <Input
+              id="http-user"
+              value={c.authUser ?? ""}
+              onChange={(e) => patch({ authUser: e.target.value })}
+            />
           </Field>
           <Field>
             <FieldLabel htmlFor="http-pass">Password</FieldLabel>
-            <Input id="http-pass" type="password" autoComplete="off" value={c.authPassword ?? ""} onChange={(e) => patch({ authPassword: e.target.value })} />
+            <Input
+              id="http-pass"
+              type="password"
+              autoComplete="off"
+              value={c.authPassword ?? ""}
+              onChange={(e) => patch({ authPassword: e.target.value })}
+            />
           </Field>
         </div>
       )}
       <Field>
         <FieldLabel htmlFor="http-hmac">HMAC signing secret</FieldLabel>
-        <Input id="http-hmac" type="password" autoComplete="off" className="font-mono text-xs" value={c.hmacSecret ?? ""} placeholder="Optional" onChange={(e) => patch({ hmacSecret: e.target.value })} />
+        <Input
+          id="http-hmac"
+          type="password"
+          autoComplete="off"
+          className="font-mono text-xs"
+          value={c.hmacSecret ?? ""}
+          placeholder="Optional"
+          onChange={(e) => patch({ hmacSecret: e.target.value })}
+        />
         <FieldDescription>
-          Adds <code className="font-mono">X-FormStudio-Signature: t=…,v1=HMAC-SHA256(t.body)</code>.
+          Adds{" "}
+          <code className="font-mono">
+            X-FormStudio-Signature: t=…,v1=HMAC-SHA256(t.body)
+          </code>
+          .
         </FieldDescription>
       </Field>
       <div className="grid grid-cols-2 gap-2">
         <Field>
           <FieldLabel htmlFor="http-retries">Retries</FieldLabel>
-          <NumberField id="http-retries" value={c.retries} min={0} max={5} onChange={(retries) => patch({ retries: Math.max(0, Math.min(5, Math.round(retries))) })} />
+          <NumberField
+            id="http-retries"
+            value={c.retries}
+            min={0}
+            max={5}
+            onChange={(retries) =>
+              patch({ retries: Math.max(0, Math.min(5, Math.round(retries))) })
+            }
+          />
         </Field>
         <Field>
           <FieldLabel htmlFor="http-timeout">Timeout (ms)</FieldLabel>
-          <NumberField id="http-timeout" value={c.timeoutMs} min={500} max={30000} onChange={(timeoutMs) => patch({ timeoutMs })} />
+          <NumberField
+            id="http-timeout"
+            value={c.timeoutMs}
+            min={500}
+            max={30000}
+            onChange={(timeoutMs) => patch({ timeoutMs })}
+          />
         </Field>
       </div>
       <Field orientation="horizontal">
-        <Switch id="http-fail" checked={c.failOnHttpError} onCheckedChange={(failOnHttpError) => patch({ failOnHttpError })} />
+        <Switch
+          id="http-fail"
+          checked={c.failOnHttpError}
+          onCheckedChange={(failOnHttpError) => patch({ failOnHttpError })}
+        />
         <FieldLabel htmlFor="http-fail" className="font-normal">
           Fail the step on non-2xx responses
         </FieldLabel>
       </Field>
       <FieldDescription>
-        Retries use exponential backoff on network errors, 5xx and 429. Response is available as {"{{nodes.<id>.status}}"} and {"{{nodes.<id>.body.…}}"}.
+        Retries use exponential backoff on network errors, 5xx and 429. Response
+        is available as {"{{nodes.<id>.status}}"} and {"{{nodes.<id>.body.…}}"}.
       </FieldDescription>
     </FieldGroup>
   )
 }
 
-function EmailForm({ c, patch, groups }: { c: EmailConfig; patch: Patch; groups: VariableGroup[] }) {
+export interface EmailTemplateChoices {
+  options: { id: string; name: string }[]
+  allowed: boolean
+}
+
+export const EmailTemplateChoicesContext = createContext<EmailTemplateChoices>({
+  options: [],
+  allowed: false,
+})
+
+function EmailForm({
+  c,
+  patch,
+  groups,
+}: {
+  c: EmailConfig
+  patch: Patch
+  groups: VariableGroup[]
+}) {
+  const templates = useContext(EmailTemplateChoicesContext)
+  const selected = templates.options.find((t) => t.id === c.templateId)
   return (
     <FieldGroup>
       <Field>
+        <FieldLabel htmlFor="em-design">Design</FieldLabel>
+        {templates.allowed ? (
+          <Select
+            value={selected?.id ?? "__plain"}
+            onValueChange={(v) =>
+              patch({ templateId: v === "__plain" ? null : v })
+            }
+          >
+            <SelectTrigger id="em-design" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__plain">Plain text email</SelectItem>
+              {templates.options.map((t) => (
+                <SelectItem key={t.id} value={t.id}>
+                  {t.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            Plain text email. Your own HTML templates are available on Pro and
+            Enterprise.
+          </p>
+        )}
+        {templates.allowed && (
+          <FieldDescription>
+            {selected ? (
+              <>
+                The message below is available in the template as{" "}
+                <code>{"{{email_body_html}}"}</code>.{" "}
+                <Link
+                  href={`/dashboard/settings/email-templates/${selected.id}`}
+                  target="_blank"
+                  className="inline-flex items-center gap-0.5 text-primary hover:underline"
+                >
+                  Edit template <ExternalLinkIcon className="size-3" />
+                </Link>
+              </>
+            ) : c.templateId ? (
+              <span className="text-destructive">
+                The selected template was deleted — a plain email is sent.
+              </span>
+            ) : (
+              <Link
+                href="/dashboard/settings/email-templates"
+                target="_blank"
+                className="inline-flex items-center gap-0.5 text-primary hover:underline"
+              >
+                Design an HTML template <ExternalLinkIcon className="size-3" />
+              </Link>
+            )}
+          </FieldDescription>
+        )}
+      </Field>
+      <Field>
         <FieldLabel htmlFor="em-to">To</FieldLabel>
-        <TemplateInput id="em-to" value={c.to} onChange={(to) => patch({ to })} groups={groups} placeholder="{{trigger.data.email}}, team@acme.com" />
+        <TemplateInput
+          id="em-to"
+          value={c.to}
+          onChange={(to) => patch({ to })}
+          groups={groups}
+          placeholder="{{trigger.data.email}}, team@acme.com"
+        />
       </Field>
       <Field>
         <FieldLabel htmlFor="em-subject">Subject</FieldLabel>
-        <TemplateInput id="em-subject" value={c.subject} onChange={(subject) => patch({ subject })} groups={groups} />
+        <TemplateInput
+          id="em-subject"
+          value={c.subject}
+          onChange={(subject) => patch({ subject })}
+          groups={groups}
+        />
       </Field>
       <Field>
         <FieldLabel htmlFor="em-body">Message</FieldLabel>
-        <TemplateInput id="em-body" value={c.body} onChange={(body) => patch({ body })} groups={groups} multiline rows={6} />
+        <TemplateInput
+          id="em-body"
+          value={c.body}
+          onChange={(body) => patch({ body })}
+          groups={groups}
+          multiline
+          rows={6}
+        />
       </Field>
       <Field>
         <FieldLabel htmlFor="em-reply">Reply-to</FieldLabel>
-        <TemplateInput id="em-reply" value={c.replyTo ?? ""} onChange={(replyTo) => patch({ replyTo })} groups={groups} placeholder="Optional" />
-        <FieldDescription>Delivered through the email outbox (Brevo, Mailtrap or SMTP when configured, otherwise logged).</FieldDescription>
+        <TemplateInput
+          id="em-reply"
+          value={c.replyTo ?? ""}
+          onChange={(replyTo) => patch({ replyTo })}
+          groups={groups}
+          placeholder="Optional"
+        />
+        <FieldDescription>
+          Delivered through the email outbox (Brevo, Mailtrap or SMTP when
+          configured, otherwise logged).
+        </FieldDescription>
       </Field>
     </FieldGroup>
   )
 }
 
-function UpdateForm({ c, patch, groups }: { c: UpdateSubmissionConfig; patch: Patch; groups: VariableGroup[] }) {
+function UpdateForm({
+  c,
+  patch,
+  groups,
+}: {
+  c: UpdateSubmissionConfig
+  patch: Patch
+  groups: VariableGroup[]
+}) {
   return (
     <FieldGroup>
       <Field>
         <FieldLabel htmlFor="up-status">Set status</FieldLabel>
-        <Select value={c.status || "KEEP"} onValueChange={(v) => patch({ status: v === "KEEP" ? "" : v })}>
+        <Select
+          value={c.status || "KEEP"}
+          onValueChange={(v) => patch({ status: v === "KEEP" ? "" : v })}
+        >
           <SelectTrigger id="up-status" className="w-full">
             <SelectValue />
           </SelectTrigger>
@@ -367,19 +742,41 @@ function UpdateForm({ c, patch, groups }: { c: UpdateSubmissionConfig; patch: Pa
       </Field>
       <Field>
         <FieldLabel htmlFor="up-add">Add tags</FieldLabel>
-        <TemplateInput id="up-add" value={c.addTags} onChange={(addTags) => patch({ addTags })} groups={groups} placeholder="vip, synced" />
+        <TemplateInput
+          id="up-add"
+          value={c.addTags}
+          onChange={(addTags) => patch({ addTags })}
+          groups={groups}
+          placeholder="vip, synced"
+        />
       </Field>
       <Field>
         <FieldLabel htmlFor="up-rm">Remove tags</FieldLabel>
-        <TemplateInput id="up-rm" value={c.removeTags} onChange={(removeTags) => patch({ removeTags })} groups={groups} placeholder="pending" />
+        <TemplateInput
+          id="up-rm"
+          value={c.removeTags}
+          onChange={(removeTags) => patch({ removeTags })}
+          groups={groups}
+          placeholder="pending"
+        />
       </Field>
       <Field>
         <FieldLabel htmlFor="up-note">Note</FieldLabel>
-        <TemplateInput id="up-note" value={c.note} onChange={(note) => patch({ note })} groups={groups} multiline rows={3} />
+        <TemplateInput
+          id="up-note"
+          value={c.note}
+          onChange={(note) => patch({ note })}
+          groups={groups}
+          multiline
+          rows={3}
+        />
       </Field>
       <Field>
         <FieldLabel htmlFor="up-mode">Note mode</FieldLabel>
-        <Select value={c.noteMode} onValueChange={(noteMode) => patch({ noteMode })}>
+        <Select
+          value={c.noteMode}
+          onValueChange={(noteMode) => patch({ noteMode })}
+        >
           <SelectTrigger id="up-mode" className="w-full">
             <SelectValue />
           </SelectTrigger>
@@ -388,7 +785,9 @@ function UpdateForm({ c, patch, groups }: { c: UpdateSubmissionConfig; patch: Pa
             <SelectItem value="replace">Replace</SelectItem>
           </SelectContent>
         </Select>
-        <FieldDescription>Test runs never modify submissions — they report what would change.</FieldDescription>
+        <FieldDescription>
+          Test runs never modify submissions — they report what would change.
+        </FieldDescription>
       </Field>
     </FieldGroup>
   )
@@ -407,29 +806,54 @@ export function NodeInspector({
   groups: VariableGroup[]
   onChange: (data: AutomationNodeData) => void
 }) {
-  const patch: Patch = (config) => onChange({ ...data, config: { ...(data.config as object), ...config } as never })
+  const patch: Patch = (config) =>
+    onChange({
+      ...data,
+      config: { ...(data.config as object), ...config } as never,
+    })
   const c = data.config as never
   return (
     <FieldGroup className="gap-5">
       <div className="grid grid-cols-[1fr_auto] items-end gap-2">
         <Field>
           <FieldLabel htmlFor="node-label">Step name</FieldLabel>
-          <Input id="node-label" value={data.label} maxLength={80} onChange={(e) => onChange({ ...data, label: e.target.value })} />
+          <Input
+            id="node-label"
+            value={data.label}
+            maxLength={80}
+            onChange={(e) => onChange({ ...data, label: e.target.value })}
+          />
         </Field>
-        <code className="mb-2 rounded-sm bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">{nodeId}</code>
+        <code className="mb-2 rounded-sm bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
+          {nodeId}
+        </code>
       </div>
-      {type === "trigger" && <TriggerForm c={c as TriggerConfig} patch={patch} />}
-      {type === "condition" && <ConditionForm c={c as ConditionConfig} patch={patch} groups={groups} />}
-      {type === "transform" && <TransformForm c={c as TransformConfig} patch={patch} groups={groups} />}
+      {type === "trigger" && (
+        <TriggerForm c={c as TriggerConfig} patch={patch} />
+      )}
+      {type === "condition" && (
+        <ConditionForm c={c as ConditionConfig} patch={patch} groups={groups} />
+      )}
+      {type === "transform" && (
+        <TransformForm c={c as TransformConfig} patch={patch} groups={groups} />
+      )}
       {type === "delay" && (
         <div className="grid grid-cols-2 gap-2">
           <Field>
             <FieldLabel htmlFor="dl-amt">Wait</FieldLabel>
-            <NumberField id="dl-amt" value={(c as DelayConfig).amount} min={1} onChange={(amount) => patch({ amount })} />
+            <NumberField
+              id="dl-amt"
+              value={(c as DelayConfig).amount}
+              min={1}
+              onChange={(amount) => patch({ amount })}
+            />
           </Field>
           <Field>
             <FieldLabel htmlFor="dl-unit">Unit</FieldLabel>
-            <Select value={(c as DelayConfig).unit} onValueChange={(unit) => patch({ unit })}>
+            <Select
+              value={(c as DelayConfig).unit}
+              onValueChange={(unit) => patch({ unit })}
+            >
               <SelectTrigger id="dl-unit" className="w-full">
                 <SelectValue />
               </SelectTrigger>
@@ -441,37 +865,76 @@ export function NodeInspector({
               </SelectContent>
             </Select>
           </Field>
-          <FieldDescription className="col-span-2">The run pauses as “waiting” and resumes automatically. Test runs skip the wait.</FieldDescription>
+          <FieldDescription className="col-span-2">
+            The run pauses as “waiting” and resumes automatically. Test runs
+            skip the wait.
+          </FieldDescription>
         </div>
       )}
       {type === "approval" && (
         <FieldGroup>
           <Field>
             <FieldLabel htmlFor="ap-rev">Reviewer emails</FieldLabel>
-            <TemplateInput id="ap-rev" value={(c as ApprovalConfig).reviewers} onChange={(reviewers) => patch({ reviewers })} groups={groups} placeholder="lead@acme.com, ops@acme.com" />
-            <FieldDescription>Each reviewer gets a signed link to approve or reject — no account needed.</FieldDescription>
+            <TemplateInput
+              id="ap-rev"
+              value={(c as ApprovalConfig).reviewers}
+              onChange={(reviewers) => patch({ reviewers })}
+              groups={groups}
+              placeholder="lead@acme.com, ops@acme.com"
+            />
+            <FieldDescription>
+              Each reviewer gets a signed link to approve or reject — no account
+              needed.
+            </FieldDescription>
           </Field>
           <Field>
             <FieldLabel htmlFor="ap-msg">Message</FieldLabel>
-            <TemplateInput id="ap-msg" value={(c as ApprovalConfig).message} onChange={(message) => patch({ message })} groups={groups} multiline rows={3} />
+            <TemplateInput
+              id="ap-msg"
+              value={(c as ApprovalConfig).message}
+              onChange={(message) => patch({ message })}
+              groups={groups}
+              multiline
+              rows={3}
+            />
           </Field>
           <Field orientation="horizontal">
-            <Switch id="ap-owner" checked={(c as ApprovalConfig).notifyOwner} onCheckedChange={(notifyOwner) => patch({ notifyOwner })} />
+            <Switch
+              id="ap-owner"
+              checked={(c as ApprovalConfig).notifyOwner}
+              onCheckedChange={(notifyOwner) => patch({ notifyOwner })}
+            />
             <FieldLabel htmlFor="ap-owner" className="font-normal">
               Also notify me in-app
             </FieldLabel>
           </Field>
-          <FieldDescription>Connect the “approved” and “rejected” handles. Decisions are available as {"{{nodes.<id>.decision}}"}.</FieldDescription>
+          <FieldDescription>
+            Connect the “approved” and “rejected” handles. Decisions are
+            available as {"{{nodes.<id>.decision}}"}.
+          </FieldDescription>
         </FieldGroup>
       )}
-      {type === "http" && <HttpForm c={c as HttpConfig} patch={patch} groups={groups} />}
-      {type === "email" && <EmailForm c={c as EmailConfig} patch={patch} groups={groups} />}
-      {type === "update_submission" && <UpdateForm c={c as UpdateSubmissionConfig} patch={patch} groups={groups} />}
+      {type === "http" && (
+        <HttpForm c={c as HttpConfig} patch={patch} groups={groups} />
+      )}
+      {type === "email" && (
+        <EmailForm c={c as EmailConfig} patch={patch} groups={groups} />
+      )}
+      {type === "update_submission" && (
+        <UpdateForm
+          c={c as UpdateSubmissionConfig}
+          patch={patch}
+          groups={groups}
+        />
+      )}
       {type === "chat" && (
         <FieldGroup>
           <Field>
             <FieldLabel htmlFor="ch-prov">Provider</FieldLabel>
-            <Select value={(c as ChatConfig).provider} onValueChange={(provider) => patch({ provider })}>
+            <Select
+              value={(c as ChatConfig).provider}
+              onValueChange={(provider) => patch({ provider })}
+            >
               <SelectTrigger id="ch-prov" className="w-full">
                 <SelectValue />
               </SelectTrigger>
@@ -483,11 +946,23 @@ export function NodeInspector({
           </Field>
           <Field>
             <FieldLabel htmlFor="ch-url">Incoming webhook URL</FieldLabel>
-            <Input id="ch-url" className="font-mono text-xs" value={(c as ChatConfig).webhookUrl} onChange={(e) => patch({ webhookUrl: e.target.value })} />
+            <Input
+              id="ch-url"
+              className="font-mono text-xs"
+              value={(c as ChatConfig).webhookUrl}
+              onChange={(e) => patch({ webhookUrl: e.target.value })}
+            />
           </Field>
           <Field>
             <FieldLabel htmlFor="ch-text">Message</FieldLabel>
-            <TemplateInput id="ch-text" value={(c as ChatConfig).text} onChange={(text) => patch({ text })} groups={groups} multiline rows={4} />
+            <TemplateInput
+              id="ch-text"
+              value={(c as ChatConfig).text}
+              onChange={(text) => patch({ text })}
+              groups={groups}
+              multiline
+              rows={4}
+            />
           </Field>
         </FieldGroup>
       )}
@@ -495,22 +970,49 @@ export function NodeInspector({
         <FieldGroup>
           <Field>
             <FieldLabel htmlFor="nt-title">Title</FieldLabel>
-            <TemplateInput id="nt-title" value={(c as NotifyConfig).title} onChange={(title) => patch({ title })} groups={groups} />
+            <TemplateInput
+              id="nt-title"
+              value={(c as NotifyConfig).title}
+              onChange={(title) => patch({ title })}
+              groups={groups}
+            />
           </Field>
           <Field>
             <FieldLabel htmlFor="nt-body">Body</FieldLabel>
-            <TemplateInput id="nt-body" value={(c as NotifyConfig).body} onChange={(body) => patch({ body })} groups={groups} multiline rows={3} />
+            <TemplateInput
+              id="nt-body"
+              value={(c as NotifyConfig).body}
+              onChange={(body) => patch({ body })}
+              groups={groups}
+              multiline
+              rows={3}
+            />
           </Field>
           <Field>
             <FieldLabel htmlFor="nt-href">Link (app path)</FieldLabel>
-            <TemplateInput id="nt-href" value={(c as NotifyConfig).href} onChange={(href) => patch({ href })} groups={groups} placeholder="/dashboard/forms/…" mono />
-            <FieldDescription>Leave empty to link to this run.</FieldDescription>
+            <TemplateInput
+              id="nt-href"
+              value={(c as NotifyConfig).href}
+              onChange={(href) => patch({ href })}
+              groups={groups}
+              placeholder="/dashboard/forms/…"
+              mono
+            />
+            <FieldDescription>
+              Leave empty to link to this run.
+            </FieldDescription>
           </Field>
         </FieldGroup>
       )}
       {type !== "trigger" && (
         <Field orientation="horizontal">
-          <Switch id="node-coe" checked={!!data.continueOnError} onCheckedChange={(continueOnError) => onChange({ ...data, continueOnError })} />
+          <Switch
+            id="node-coe"
+            checked={!!data.continueOnError}
+            onCheckedChange={(continueOnError) =>
+              onChange({ ...data, continueOnError })
+            }
+          />
           <FieldLabel htmlFor="node-coe" className="font-normal">
             Continue the run if this step fails
           </FieldLabel>
