@@ -1,0 +1,727 @@
+// FormStudio — Prisma schema (MySQL / MariaDB via @prisma/adapter-mariadb)
+// Auth.js models (User, Account, Session, VerificationToken) are preserved and extended.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+// ─────────────────────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────────────────────
+
+enum Role {
+  USER
+  ADMIN
+}
+
+/// Workspace (team) role. Strictly ordered: OWNER > ADMIN > EDITOR > MEMBER.
+enum WorkspaceRole {
+  OWNER
+  ADMIN
+  EDITOR
+  MEMBER
+}
+
+/// Per-form grant. Strictly ordered: MANAGE > EDIT > REVIEW > VIEW.
+enum FormAccessLevel {
+  VIEW
+  REVIEW
+  EDIT
+  MANAGE
+}
+
+enum EmailProviderKind {
+  BREVO
+  MAILTRAP
+  SMTP
+}
+
+enum FormMode {
+  CLASSIC
+  STEPPER
+  CARD
+  QUIZ
+}
+
+enum FormStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+}
+
+enum SubmissionStatus {
+  NEW
+  REVIEWED
+  FLAGGED
+  ARCHIVED
+}
+
+enum FormEventType {
+  VIEW
+  START
+  STEP_COMPLETE
+  SUBMIT
+}
+
+enum EventSource {
+  DIRECT
+  IFRAME
+  SCRIPT
+  POPUP
+  DRAWER
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  EXPIRED
+}
+
+enum UpgradeRequestStatus {
+  PENDING
+  APPROVED
+  DECLINED
+}
+
+// ─────────────────────────────────────────────────────────────
+// Auth.js models
+// ─────────────────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?   @db.Text
+  password      String?
+  role          Role      @default(USER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts        Account[]
+  sessions        Session[]
+  forms           Form[]            @relation("FormBillingOwner")
+  formsCreated    Form[]            @relation("FormCreator")
+  ownedWorkspaces Workspace[]       @relation("WorkspaceOwner")
+  memberships     WorkspaceMember[]
+  invitesSent     WorkspaceInvite[]
+  auditLogs       AuditLog[]
+  subscription    Subscription?     @relation("SubscriptionOwner")
+  assignedSubs    Subscription[]    @relation("SubscriptionAssigner")
+  upgradeRequests UpgradeRequest[]
+  apiKeys         ApiKey[]
+  notifications   Notification[]
+  apiRequestLogs  ApiRequestLog[]
+}
+
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?  @db.Text
+  access_token      String?  @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?  @db.Text
+  session_state     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Forms
+// ─────────────────────────────────────────────────────────────
+
+model Form {
+  id              String     @id @default(cuid())
+  /// Billing owner (the workspace owner) — plan limits are counted against this user.
+  userId          String
+  workspaceId     String
+  /// Member who created the form. EDITORs keep MANAGE access to forms they created.
+  createdById     String?
+  title           String
+  description     String?    @db.Text
+  slug            String     @unique
+  mode            FormMode   @default(CLASSIC)
+  status          FormStatus @default(DRAFT)
+  draftSchema     Json
+  publishedSchema Json?
+  themeConfig     Json
+  settings        Json
+  publishedAt     DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  user         User          @relation("FormBillingOwner", fields: [userId], references: [id], onDelete: Cascade)
+  workspace    Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy    User?         @relation("FormCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  access       FormAccess[]
+  versions     FormVersion[]
+  submissions  Submission[]
+  events       FormEvent[]
+  webhooks     Webhook[]
+  automations  Automation[]
+  resumeDrafts ResumeDraft[]
+
+  @@index([userId, updatedAt])
+  @@index([workspaceId, updatedAt])
+  @@index([createdById])
+  @@index([status])
+}
+
+model FormVersion {
+  id            String   @id @default(cuid())
+  formId        String
+  versionNumber Int
+  schema        Json
+  themeConfig   Json
+  createdAt     DateTime @default(now())
+
+  form Form @relation(fields: [formId], references: [id], onDelete: Cascade)
+
+  @@unique([formId, versionNumber])
+  @@index([formId, createdAt])
+}
+
+model Submission {
+  id            String           @id @default(cuid())
+  formId        String
+  data          Json
+  computedScore Int?
+  status        SubmissionStatus @default(NEW)
+  notes         String?          @db.Text
+  tags          Json?
+  metadata      Json
+  createdAt     DateTime         @default(now())
+
+  form           Form            @relation(fields: [formId], references: [id], onDelete: Cascade)
+  automationRuns AutomationRun[]
+
+  @@index([formId, createdAt])
+  @@index([formId, status])
+}
+
+model FormEvent {
+  id        String        @id @default(cuid())
+  formId    String
+  sessionId String
+  type      FormEventType
+  stepIndex Int?
+  source    EventSource   @default(DIRECT)
+  createdAt DateTime      @default(now())
+
+  form Form @relation(fields: [formId], references: [id], onDelete: Cascade)
+
+  @@index([formId, createdAt])
+  @@index([formId, type])
+  @@index([sessionId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Webhooks
+// ─────────────────────────────────────────────────────────────
+
+model Webhook {
+  id        String   @id @default(cuid())
+  formId    String
+  name      String   @default("Webhook")
+  url       String   @db.Text
+  secret    String
+  headers   Json
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  form       Form              @relation(fields: [formId], references: [id], onDelete: Cascade)
+  deliveries WebhookDelivery[]
+
+  @@index([formId])
+}
+
+model WebhookDelivery {
+  id           String   @id @default(cuid())
+  webhookId    String
+  event        String   @default("submission.created")
+  statusCode   Int?
+  responseMs   Int?
+  success      Boolean  @default(false)
+  payload      Json
+  responseBody String?  @db.Text
+  error        String?  @db.Text
+  attempt      Int      @default(1)
+  createdAt    DateTime @default(now())
+
+  webhook Webhook @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+
+  @@index([webhookId, createdAt])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Plans, subscriptions & upgrade requests
+// ─────────────────────────────────────────────────────────────
+
+model Plan {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  description String?  @db.Text
+  priceLabel  String
+  limits      Json
+  features    Json
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  subscriptions   Subscription[]
+  upgradeRequests UpgradeRequest[]
+}
+
+model Subscription {
+  id                String             @id @default(cuid())
+  userId            String             @unique
+  planId            String
+  status            SubscriptionStatus @default(ACTIVE)
+  assignedByAdminId String?
+  startsAt          DateTime           @default(now())
+  expiresAt         DateTime?
+  adminNotes        String?            @db.Text
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  user       User  @relation("SubscriptionOwner", fields: [userId], references: [id], onDelete: Cascade)
+  plan       Plan  @relation(fields: [planId], references: [id])
+  assignedBy User? @relation("SubscriptionAssigner", fields: [assignedByAdminId], references: [id], onDelete: SetNull)
+
+  @@index([planId])
+  @@index([assignedByAdminId])
+}
+
+model UpgradeRequest {
+  id              String               @id @default(cuid())
+  userId          String
+  requestedPlanId String
+  contactEmail    String
+  contactPhone    String?
+  message         String?              @db.Text
+  status          UpgradeRequestStatus @default(PENDING)
+  adminResponse   String?              @db.Text
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  user          User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  requestedPlan Plan @relation(fields: [requestedPlanId], references: [id])
+
+  @@index([status, createdAt])
+  @@index([userId])
+  @@index([requestedPlanId])
+}
+
+model SystemSetting {
+  key       String   @id
+  value     String   @db.Text
+  updatedAt DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────────────────────────
+// Save & resume later
+// ─────────────────────────────────────────────────────────────
+
+model ResumeDraft {
+  id        String   @id @default(cuid())
+  formId    String
+  /// SHA-256 of the resume token; the raw token only lives in the link.
+  tokenHash String   @unique
+  data      Json
+  stepIndex Int      @default(0)
+  email     String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  form Form @relation(fields: [formId], references: [id], onDelete: Cascade)
+
+  @@index([formId])
+  @@index([expiresAt])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Automation Studio
+// ─────────────────────────────────────────────────────────────
+
+enum AutomationTrigger {
+  FORM_SUBMITTED
+  QUIZ_SCORE
+  STATUS_CHANGED
+  MANUAL
+}
+
+enum AutomationRunStatus {
+  RUNNING
+  SUCCEEDED
+  FAILED
+  WAITING_APPROVAL
+  WAITING_DELAY
+  CANCELLED
+}
+
+model Automation {
+  id          String            @id @default(cuid())
+  formId      String
+  name        String
+  description String?           @db.Text
+  enabled     Boolean           @default(false)
+  trigger     AutomationTrigger @default(FORM_SUBMITTED)
+  /// React Flow graph: { nodes: AutomationNode[], edges: AutomationEdge[] }
+  graph       Json
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  form Form            @relation(fields: [formId], references: [id], onDelete: Cascade)
+  runs AutomationRun[]
+
+  @@index([formId, enabled])
+}
+
+model AutomationRun {
+  id            String              @id @default(cuid())
+  automationId  String
+  submissionId  String?
+  status        AutomationRunStatus @default(RUNNING)
+  isTest        Boolean             @default(false)
+  triggerType   AutomationTrigger
+  /// Trigger payload exposed to nodes as {{trigger.*}}
+  triggerData   Json
+  /// Snapshot of the graph at run time so replays are deterministic
+  graph         Json
+  /// Accumulated node outputs ({{nodes.<id>.*}}) and resume cursor
+  context       Json
+  error         String?             @db.Text
+  waitingNodeId String?
+  resumeAt      DateTime?
+  replayOfId    String?
+  startedAt     DateTime            @default(now())
+  finishedAt    DateTime?
+  durationMs    Int?
+
+  automation Automation          @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  submission Submission?         @relation(fields: [submissionId], references: [id], onDelete: SetNull)
+  steps      AutomationRunStep[]
+
+  @@index([automationId, startedAt])
+  @@index([status, resumeAt])
+}
+
+model AutomationRunStep {
+  id         String    @id @default(cuid())
+  runId      String
+  nodeId     String
+  nodeType   String
+  label      String
+  status     String
+  input      Json?
+  output     Json?
+  error      String?   @db.Text
+  attempt    Int       @default(1)
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  durationMs Int?
+
+  run AutomationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId, startedAt])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  title     String
+  body      String?   @db.Text
+  href      String?   @db.Text
+  kind      String    @default("info")
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt, createdAt])
+}
+
+model EmailOutbox {
+  id          String    @id @default(cuid())
+  to          Json
+  subject     String    @db.Text
+  html        String    @db.MediumText
+  replyTo     String?
+  /// QUEUED | SENT | LOGGED | FAILED
+  status      String    @default("QUEUED")
+  provider    String?
+  /// Provider message id (Brevo messageId, Mailtrap message_ids[0], SMTP Message-ID)
+  messageId   String?   @db.VarChar(255)
+  error       String?   @db.Text
+  source      String?
+  /// Workspace whose sender/provider was used (null = platform mail)
+  workspaceId String?
+  createdAt   DateTime  @default(now())
+  sentAt      DateTime?
+
+  @@index([createdAt])
+  @@index([workspaceId, createdAt])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Developer API
+// ─────────────────────────────────────────────────────────────
+
+model ApiKey {
+  id          String    @id @default(cuid())
+  userId      String
+  /// Keys act inside exactly one workspace with the owner's live permissions there.
+  workspaceId String
+  name        String
+  /// First characters of the key shown in the UI, e.g. "fs_live_a1b2c3"
+  prefix      String
+  /// SHA-256 hex of the full key
+  hash        String    @unique
+  scopes      Json
+  rateLimit   Int       @default(120)
+  expiresAt   DateTime?
+  revokedAt   DateTime?
+  lastUsedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace   Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  requestLogs ApiRequestLog[]
+  idempotency IdempotencyRecord[]
+
+  @@index([userId])
+  @@index([workspaceId])
+}
+
+model ApiRequestLog {
+  id         String   @id @default(cuid())
+  userId     String
+  apiKeyId   String?
+  method     String
+  path       String   @db.VarChar(500)
+  status     Int
+  durationMs Int
+  ip         String?
+  error      String?  @db.Text
+  createdAt  DateTime @default(now())
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  apiKey ApiKey? @relation(fields: [apiKeyId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([apiKeyId, createdAt])
+}
+
+model RateLimitBucket {
+  key         String   @id @db.VarChar(191)
+  windowStart DateTime
+  count       Int      @default(0)
+  updatedAt   DateTime @updatedAt
+}
+
+model IdempotencyRecord {
+  id          String   @id @default(cuid())
+  apiKeyId    String
+  key         String   @db.VarChar(191)
+  requestHash String
+  status      Int
+  response    Json
+  createdAt   DateTime @default(now())
+
+  apiKey ApiKey @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+
+  @@unique([apiKeyId, key])
+  @@index([createdAt])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Teams: workspaces, members, groups, form access, invites, audit
+// ─────────────────────────────────────────────────────────────
+
+model Workspace {
+  id        String   @id @default(cuid())
+  name      String
+  /// Exactly one OWNER per workspace; also the billing owner of its forms.
+  ownerId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner         User                    @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members       WorkspaceMember[]
+  invites       WorkspaceInvite[]
+  groups        WorkspaceGroup[]
+  forms         Form[]
+  apiKeys       ApiKey[]
+  emailProvider WorkspaceEmailProvider?
+  auditLogs     AuditLog[]
+
+  @@index([ownerId])
+}
+
+model WorkspaceMember {
+  id          String        @id @default(cuid())
+  workspaceId String
+  userId      String
+  role        WorkspaceRole @default(MEMBER)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  workspace Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  groups    WorkspaceGroupMember[]
+  access    FormAccess[]
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
+}
+
+model WorkspaceGroup {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String   @db.VarChar(80)
+  description String?  @db.VarChar(300)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  members   WorkspaceGroupMember[]
+  access    FormAccess[]
+
+  @@unique([workspaceId, name])
+}
+
+model WorkspaceGroupMember {
+  groupId   String
+  memberId  String
+  createdAt DateTime @default(now())
+
+  group  WorkspaceGroup  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  member WorkspaceMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, memberId])
+  @@index([memberId])
+}
+
+/// A grant of one form to one member or one group (exactly one of memberId/groupId is set).
+/// Grants reference memberships, so removing someone from the workspace revokes them.
+model FormAccess {
+  id          String          @id @default(cuid())
+  formId      String
+  memberId    String?
+  groupId     String?
+  level       FormAccessLevel @default(VIEW)
+  grantedById String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  form   Form             @relation(fields: [formId], references: [id], onDelete: Cascade)
+  member WorkspaceMember? @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  group  WorkspaceGroup?  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([formId, memberId])
+  @@unique([formId, groupId])
+  @@index([memberId])
+  @@index([groupId])
+}
+
+model WorkspaceInvite {
+  id          String        @id @default(cuid())
+  workspaceId String
+  email       String
+  role        WorkspaceRole @default(MEMBER)
+  /// Group ids to join on acceptance
+  groupIds    Json?
+  /// SHA-256 hex of the single-use token; the raw token only exists in the link
+  tokenHash   String        @unique @db.Char(64)
+  invitedById String?
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime      @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  invitedBy User?     @relation(fields: [invitedById], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, email])
+}
+
+/// Bring-your-own email provider. Secrets are AES-256-GCM encrypted (lib/crypto/secrets.ts)
+/// and bound to the workspace id; they are never sent to the browser.
+model WorkspaceEmailProvider {
+  id               String            @id @default(cuid())
+  workspaceId      String            @unique
+  provider         EmailProviderKind
+  enabled          Boolean           @default(true)
+  fromEmail        String
+  fromName         String?
+  replyTo          String?
+  /// Non-secret settings (SMTP host/port/secure/username, Mailtrap sandbox + inbox id)
+  config           Json
+  secretCiphertext String            @db.Text
+  /// Last four characters of the secret, for display only
+  secretHint       String?           @db.VarChar(8)
+  lastTestAt       DateTime?
+  lastTestOk       Boolean?
+  lastError        String?           @db.Text
+  updatedById      String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  workspaceId String
+  actorId     String?
+  /// e.g. member.role_changed, form.access_granted, email_provider.updated
+  action      String   @db.VarChar(64)
+  targetType  String?  @db.VarChar(32)
+  targetId    String?  @db.VarChar(64)
+  summary     String   @db.VarChar(500)
+  metadata    Json?
+  ip          String?  @db.VarChar(64)
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  actor     User?     @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, createdAt])
+}
