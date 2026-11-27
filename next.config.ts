@@ -25,7 +25,8 @@ const protectedHeaders = extraAncestors
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
-  serverExternalPackages: ["@prisma/adapter-mariadb", "mariadb"],
+  // Loaded by Node at runtime instead of bundled (keeps webpack and Turbopack builds clean).
+  serverExternalPackages: ["@prisma/adapter-mariadb", "mariadb", "handlebars", "juice", "sanitize-html", "html-to-text"],
   // Drafts can carry an uploaded logo, cover image and up to two custom font files.
   experimental: { serverActions: { bodySizeLimit: "4mb" } },
   async headers() {

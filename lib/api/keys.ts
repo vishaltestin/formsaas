@@ -1,16 +1,8 @@
 import { createHash, randomBytes } from "node:crypto"
 
-export const API_SCOPES = ["forms:read", "forms:write", "submissions:read", "submissions:write", "automations:trigger", "analytics:read"] as const
-export type ApiScope = (typeof API_SCOPES)[number]
+import { API_SCOPES, SCOPE_DESCRIPTIONS, type ApiScope } from "@/lib/api/scopes"
 
-export const SCOPE_DESCRIPTIONS: Record<ApiScope, string> = {
-  "forms:read": "List and read forms, fields and automations",
-  "forms:write": "Create, update, publish and delete forms",
-  "submissions:read": "List and read submissions",
-  "submissions:write": "Create, update and delete submissions",
-  "automations:trigger": "Trigger manual automations",
-  "analytics:read": "Read form analytics",
-}
+export { API_SCOPES, SCOPE_DESCRIPTIONS, type ApiScope }
 
 export const KEY_PREFIX = "fs_live_"
 
@@ -29,7 +21,11 @@ export function generateApiKey() {
 }
 
 export function parseScopes(raw: unknown): ApiScope[] {
-  return Array.isArray(raw) ? raw.filter((s): s is ApiScope => (API_SCOPES as readonly string[]).includes(s as string)) : []
+  return Array.isArray(raw)
+    ? raw.filter((s): s is ApiScope =>
+        (API_SCOPES as readonly string[]).includes(s as string)
+      )
+    : []
 }
 
 export function parseBearer(header: string | null): string | null {

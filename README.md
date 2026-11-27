@@ -372,3 +372,11 @@ Actions check workspace membership on the server. Template ids are only resolved
 | `/api/assets/[id]/[name]` | Public image hosting for emails |
 
 New Prisma models: `EmailTemplate` and `WorkspaceAsset` (migration `20261125095659_email_templates`). The seed adds "Dana Demo Co. letter" to Dana's workspace and uses it for the Contact & Support thank-you email.
+
+### Building with webpack (older servers)
+
+`npx next build --webpack` is supported alongside the default Turbopack build.
+
+- **Fonts:** They are self-hosted from `app/fonts` through `next/font/local`, so the build never contacts Google Fonts. Builds work offline and behind firewalls.
+- **Client imports:** Client components must not import files that use Node built-ins (`node:crypto` etc.). Shared constants live in client-safe modules such as `lib/api/scopes.ts`.
+- **Server-only packages:** `handlebars`, `juice`, `sanitize-html` and `html-to-text` are listed in `serverExternalPackages`, so webpack doesn't bundle them.

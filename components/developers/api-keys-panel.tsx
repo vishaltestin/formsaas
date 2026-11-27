@@ -27,7 +27,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { API_SCOPES, SCOPE_DESCRIPTIONS, type ApiScope } from "@/lib/api/keys"
+import { API_SCOPES, SCOPE_DESCRIPTIONS, type ApiScope } from "@/lib/api/scopes"
 
 export interface ApiKeyRow {
   id: string
